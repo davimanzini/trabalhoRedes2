@@ -1,0 +1,7 @@
+Tabela de Servidores: representado como uma estrutura de dados em memória RAM 
+(um dicionário Python, por exemplo), porque operações contínuas de escrita e leitura
+em arquivos .json ou .txt abre margem para erros de concorrência.
+
+Load Balancer e o Sistema de Monitoramento: Juntos no mesmo arquivo para que 
+acessem a tabela de forma rápida e segura, separados por threads e protegidos 
+por travas de concorrência.
