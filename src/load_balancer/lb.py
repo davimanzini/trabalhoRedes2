@@ -13,6 +13,8 @@ import multiprocessing
 TAM_MAX = 1024
 TAM_FILA = 50
 
+#-------------Monitor System-----------------
+
 def monitor_servers(tabela_servidores, lock):
     """
     Baseada na ideia de cliente UDP, porque não há necessidade de estabelecer
@@ -93,6 +95,5 @@ while True:
     print("[SERVIDOR] Conexão encerrada.\n")
 
 
-#-------------Monitor System-----------------
 
 

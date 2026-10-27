@@ -1,0 +1,1 @@
+# Variáveis do projeto (ex: portas, IPs, tempos de timeout) 

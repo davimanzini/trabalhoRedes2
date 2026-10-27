@@ -1,2 +1,4 @@
 //um log que armazene detalhes da execução do sistema, permitindo a depuração e
 análise durante a defesa do trabalho.
+# Arquivo único ou por componente para logar a execução e auxiliar na defesa
+
