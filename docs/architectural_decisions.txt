@@ -1,0 +1,22 @@
+Decisões que podem ser tomadas ao longo da codificação, que serão importantes
+de serem documentadas para a escrita do relatório ao final.
+
+Tabela de Servidores: representado como uma estrutura de dados em memória RAM 
+(um dicionário Python) em vez de arquivos .json ou .txt, porque operações contínuas de escrita e leitura
+abre margem para erros de concorrência, além de serem mais custosas, na RAM
+essas operações são mais rápidas.
+
+Load Balancer e o Sistema de Monitoramento: Juntos no mesmo arquivo para que 
+acessem a tabela localmente de forma rápida e segura, evitando race conditions 
+com travas lock.
+
+Load Balancer como Proxy Bidirecional: Em vez de receber a mensagem,
+processar e fechar a conexão imediatamente, o processo filho do LB estabelece um 
+laço while True contínuo. Isso foi decidido para suportar a regra de que os clientes 
+enviarão dados continuamente durante K segundos arbitrários, exigindo que o 
+LB mantenha os canais abertos e faça o repasse de ponta a ponta
+
+Monitoramento via UDP: Enquanto o tráfego de dados dos clientes exige 
+confiabilidade e utiliza TCP, o monitoramento interno foi projetado usando UDP. 
+Por que não havia necessidade de estabelecer conexão (three-way handshake) com o envio 
+periódico de pacotes curtos ("PING") que reduz a latência e o overhead na rede.
