@@ -2,20 +2,33 @@ import socket
 import sys
 import multiprocessing #importante para possibilitar que o servidor escute por ambas as portas (TCP e UDP)
 
-TAM_MAX = 1024 #pq esse tamanho?
+from log_config import configurar_log
+
+TAM_MAX = 1024 #revisar tamanho
 
 #precisamos estabelecer 2 sockets, um para os dados (TCP)
 #e outro para o monitoramente feito pelo LB (UDP)
 
-def atender_cliente(socketCliente, clienteAddr):
+def atender_cliente(socketCliente, clienteAddr, portaTCP):
+
+    logger = configurar_log(f"SERVIDOR_{portaTCP}", f"servidor_{portaTCP}.log")
 
     print(f"==== SERVIDOR ==== Cliente conectado: {clienteAddr}")
+    logger.info(f"Cliente conectado: {clienteAddr}")
 
-    mensagemLida = socketCliente.recv(TAM_MAX).decode()
-    print(f"==== SERVIDOR ==== Mensagem recebida: {mensagemLida}")
+    while(True):
 
-    socketCliente.sendall(b"Mensagem recebida")
+        mensagemLida = socketCliente.recv(TAM_MAX).decode()
+        
+        if not mensagemLida:
+            break
+        
+        print(f"==== SERVIDOR ==== Mensagem recebida: {mensagemLida}")
+        logger.info(f"Mensagem recebida de {clienteAddr}: {mensagemLida}")
 
+        socketCliente.sendall(b"Mensagem recebida")
+
+    logger.info(f"Cliente desconectado: {clienteAddr}")
     socketCliente.close()
 
 
@@ -23,6 +36,9 @@ def escutar_clientes(portaTCP):
 
     #stream -> fluxo continuo, ja que eh TCP
     tcp_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    #importante para evitar erro address already in use se derrubarmos servidores no teste
+    tcp_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     tcp_sock.bind(('', portaTCP))
 
     #porta em modo de escuta
@@ -36,17 +52,13 @@ def escutar_clientes(portaTCP):
         #um processo novo criado para cada cliente
         #assim o servidor não fica esperando um cliente de cada vez
         conexaoCliente = multiprocessing.Process(target = atender_cliente,
-           args = (socketCliente, clienteAddr))
+           args = (socketCliente, clienteAddr, portaTCP))
 
         conexaoCliente.daemon = True
         conexaoCliente.start()
 
         #o processo "filho" ja assumiu o socket, o processo "pai" ja pode desconectar
         socketCliente.close()
-
-        
-
-
 
 #recebe o PING do load balancer
 def escutar_monitoramento(portaUDP):
@@ -57,7 +69,7 @@ def escutar_monitoramento(portaUDP):
 
     while True:
 
-        #o que exatamente isso ta fazendo?
+        #revisar
         mensagem, lb_addr = udp_sock.recvfrom(TAM_MAX)
         mensagem = mensagem.decode()
 
@@ -71,11 +83,14 @@ def main():
     #argv[0] eh servidor.py
 
     if len(sys.argv) != 3:
-        print(f"Uso correto: {sys.argv[0]} <porta>")
+        print(f"Uso correto: {sys.argv[0]} <portaTCP> <portaUDP")
         sys.exit(1)
     
     portaTCP = int(sys.argv[1])
     portaUDP = int(sys.argv[2])
+
+    logger = configurar_log(f"SERVIDOR_{portaTCP}", f"servidor_{portaTCP}.log")
+    logger.info(f"Servidor iniciado nas portas TCP {portaTCP} e UDP {portaUDP}")
 
     #variavel referente ao processo (ele inicia "pausado")
     escutaMonitoramento = multiprocessing.Process(target = escutar_monitoramento,

@@ -25,48 +25,54 @@ def send_request(client_id):
     mensagens_enviadas = 0
     respostas_recebidas = 0
 
-    # cada requisição utiliza uma conexão TCP independente,
-    # pois o servidor atual encerra a conexão após responder no codigo do davi
     tempo_final = time.monotonic() + K_segundos
 
     while time.monotonic() < tempo_final:
         try:
-            # uma conexão por requisição
+            #conexão persistente
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
                 client_socket.settimeout(TIMEOUT)
 
                 # conexão com o lb
                 client_socket.connect((LB_HOST, LB_PORT))
 
-                mensagem = (
-                    f"Requisição do Cliente #{client_id} "
-                    f"Mensagem #{mensagens_enviadas + 1}"
-                )
+                while time.monotonic() < tempo_final:
 
-                client_socket.sendall(mensagem.encode("utf-8"))
-                mensagens_enviadas += 1
-
-                # o servidor atual envia uma resposta sem \\n e fecha
-                # a conexão por isso usamos recv() em vez de readline().
-                resposta = client_socket.recv(BUFFER_SIZE)
-
-                if not resposta:
-                    raise ConnectionError(
-                        "O Load Balancer encerrou a conexão sem resposta."
+                    mensagem = (
+                        f"Requisição do Cliente #{client_id} "
+                        f"Mensagem #{mensagens_enviadas + 1}"
                     )
 
-                resposta = resposta.decode("utf-8", errors="replace")
-                respostas_recebidas += 1
+                    client_socket.sendall(mensagem.encode("utf-8"))
+                    mensagens_enviadas += 1
 
-                print(
-                    f"[Cliente {client_id}] "
-                    f"Resposta recebida: {resposta}"
-                )
+                    # o servidor atual envia uma resposta sem \\n e fecha
+                    # a conexão por isso usamos recv() em vez de readline().
+                    resposta = client_socket.recv(BUFFER_SIZE)
 
-                logger.info(
-                    f"Cliente {client_id}: mensagem {mensagens_enviadas} "
-                    f"enviada e resposta recebida."
-                )
+                    if not resposta:
+                        raise ConnectionError(
+                            "O Load Balancer encerrou a conexão sem resposta."
+                        )
+
+                    resposta = resposta.decode("utf-8", errors="replace")
+                    respostas_recebidas += 1
+
+                    print(
+                        f"[Cliente {client_id}] "
+                        f"Resposta recebida: {resposta}"
+                    )
+
+                    logger.info(
+                        f"Cliente {client_id}: mensagem {mensagens_enviadas} "
+                        f"enviada e resposta recebida."
+                    )
+
+                    # tempo antes de abrir nova conexão
+                    tempo_restante = tempo_final - time.monotonic()
+                
+                    if tempo_restante > 0:
+                        time.sleep(min(INTERVALO_ENVIO, tempo_restante))
 
         except ConnectionRefusedError:
             print(
@@ -86,6 +92,9 @@ def send_request(client_id):
             logger.warning(
                 f"Cliente {client_id}: falha na requisição - {e}"
             )
+            tempo_restante = tempo_final - time.monotonic()
+            if tempo_restante > 0:
+                time.sleep(min(INTERVALO_ENVIO, tempo_restante))
 
         except Exception:
             print(f"[Cliente {client_id}] Erro inesperado.")
@@ -93,12 +102,6 @@ def send_request(client_id):
                 f"Cliente {client_id}: erro inesperado."
             )
             break
-
-        # tempo antes de abrir nova conexão
-        tempo_restante = tempo_final - time.monotonic()
-
-        if tempo_restante > 0:
-            time.sleep(min(INTERVALO_ENVIO, tempo_restante))
 
     print(
         f"[Cliente {client_id}] "

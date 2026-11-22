@@ -2,6 +2,14 @@ import socket
 import sys
 import time
 import multiprocessing
+import os
+
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+)
+from log_config import configurar_log
+
+logger = configurar_log("LB", "lb.log")
 
 TAM_MAX = 1024
 TAM_FILA = 50
@@ -49,6 +57,11 @@ def monitor_servers(tabela_servidores, lock):
                     tabela_servidores[srv_id] = srv_info
                 print(f"Servidor {srv_id} ({info['ip']}) mudou para {atual}")
 
+                if atual == 'UP':
+                    logger.info(f"Servidor {srv_id} ({info['ip']}) mudou para UP")
+                else:
+                    logger.warning(f"Servidor {srv_id} ({info['ip']}) mudou para DOWN")
+
         time.sleep(3)
 
 #-------------Processo filho-----------------#
@@ -62,7 +75,10 @@ def atender_cliente(connfd, client_addr, tabela_servidores, conexoes, lock, poli
         servidores_vivos = {i: j for i, j in tabela_servidores.items() if j['status'] == 'UP'}
 
         if not servidores_vivos:
+            
             print(f"{client_addr} não atendido: Nenhum servidor disponível")
+            logger.warning(f"{client_addr} não atendido: Nenhum servidor disponível")
+
             connfd.close()
             return
         if politica == "least_connections":
@@ -84,6 +100,7 @@ def atender_cliente(connfd, client_addr, tabela_servidores, conexoes, lock, poli
         conexoes.value += 1
 
     print(f"Cliente {client_addr} atendido por Servidor:{serv_escolhido} Politica {politica}")
+    logger.info(f"Cliente {client_addr} atendido por Servidor:{serv_escolhido} Politica {politica}")
 
     servidor_info = tabela_servidores[serv_escolhido]
     backend_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -107,6 +124,7 @@ def atender_cliente(connfd, client_addr, tabela_servidores, conexoes, lock, poli
                 break
     except Exception as e:
         print(f"Erro de comunicação com servidor {serv_escolhido}: {e}")
+        logger.error(f"Erro de comunicação com servidor {serv_escolhido}: {e}")
     finally:
         backend_sock.close()
         connfd.close()
@@ -123,6 +141,7 @@ def atender_cliente(connfd, client_addr, tabela_servidores, conexoes, lock, poli
 def main():
     # é para ser: script, porta, politica e N
     if len(sys.argv) != 4:
+        
         print(f"Uso correto: {sys.argv[0]} <porta> <politica: rr ou lc> <N_servidores>")
         sys.exit(1)
 
@@ -170,6 +189,7 @@ def main():
     sockfd.listen(TAM_FILA)
 
     print(f"[LB] Rodando na porta {porta_lb} | Política: {politica.upper()}")
+    logger.info(f"[LB] Rodando na porta {porta_lb} | Política: {politica.upper()}")
     print("[LB] Aguardando conexoes\n")
 
     try:
@@ -187,6 +207,7 @@ def main():
             connfd.close()
     except KeyboardInterrupt:
         print("\n[LB] Encerrando Load Balancer")
+        logger.info("[LB] Encerrando Load Balancer")
     finally:
         sockfd.close()
 
