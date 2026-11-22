@@ -17,8 +17,7 @@ logger = configurar_log("CLIENTES", "clientes.log")
 
 # ------------ Parâmetros dos clientes -------------------
 # valores que pode alterar pros testes :)
-NUM_CLIENTES = 10
-DURACAO_CLIENTES = 30
+# aqui ficava também o número de clientes e o intervalo entre mensagens
 INTERVALO_ENVIO = 0.5
 
 # envia uma mensagem pro LB e recebe a resposta correspondente
@@ -28,7 +27,7 @@ def send_request(client_id):
 
     # cada requisição utiliza uma conexão TCP independente,
     # pois o servidor atual encerra a conexão após responder no codigo do davi
-    tempo_final = time.monotonic() + DURACAO_CLIENTES
+    tempo_final = time.monotonic() + K_segundos
 
     while time.monotonic() < tempo_final:
         try:
@@ -118,9 +117,16 @@ def send_request(client_id):
 # executa a função principal só quando o arquivo é executado diretamente
 if __name__ == "__main__":
 
+    if len(sys.argv) != 3:
+        print(f"Uso correto: {sys.argv[0]} <M clientes> <K segundos>")
+        sys.exit(1)
+
+    K_segundos = int(sys.argv[2])
+    M_clientes = int(sys.argv[1])
+
     print("=== Iniciando Simulação de Clientes ===")
-    print(f"Quantidade de clientes: {NUM_CLIENTES}")
-    print(f"Duração: {DURACAO_CLIENTES} segundos")
+    print(f"Quantidade de clientes: {M_clientes}")
+    print(f"Duração: {K_segundos} segundos")
     print(f"Intervalo entre mensagens: {INTERVALO_ENVIO} segundos")
     print(f"Load Balancer: {LB_HOST}:{LB_PORT}\n")
 
@@ -128,16 +134,16 @@ if __name__ == "__main__":
     total_recebidas = 0
 
     logger.info(
-        f"Iniciando simulação com {NUM_CLIENTES} clientes "
-        f"durante {DURACAO_CLIENTES} segundos."
+        f"Iniciando simulação com {M_clientes} clientes "
+        f"durante {K_segundos} segundos."
     )
 
     # executa os clientes ao mesmo tempo
-    with ThreadPoolExecutor(max_workers=NUM_CLIENTES) as executor:
+    with ThreadPoolExecutor(max_workers=M_clientes) as executor:
 
         tarefas = [
             executor.submit(send_request, i)
-            for i in range(1, NUM_CLIENTES + 1)
+            for i in range(1, M_clientes + 1)
         ]
 
         # aguarda os clientes terminarem
@@ -153,7 +159,7 @@ if __name__ == "__main__":
 
     logger.info(
         f"Simulação finalizada. "
-        f"Clientes: {NUM_CLIENTES}. "
+        f"Clientes: {M_clientes}. "
         f"Mensagens enviadas: {total_enviadas}. "
         f"Respostas recebidas: {total_recebidas}."
     )
